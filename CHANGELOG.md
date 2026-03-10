@@ -422,14 +422,15 @@ Exercise vigilance regarding copycat or coat-tailing sites that seek to exploit 
 
 ## 2026-03-10
 
-### 🚀 Updated Scripts
+### 🆕 New Scripts
 
-  - #### 🐞 Bug Fixes
-
-    - [Fix] Immich: Pin libvips to 8.17.3 [@vhsdream](https://github.com/vhsdream) ([#12744](https://github.com/community-scripts/ProxmoxVE/pull/12744))
+  - Upstream workflow sync 20260310 172703 [@BillyOutlast](https://github.com/BillyOutlast) ([#11](https://github.com/community-unscripted/ProxmoxVE/pull/11))
 
 ## 2026-03-09
 
+### 🆕 New Scripts
+
+  - hermes [@proxmoxved-migration-bot[bot]](https://github.com/proxmoxved-migration-bot[bot]) ([#6](https://github.com/community-unscripted/ProxmoxVE/pull/6))
 ### 🚀 Updated Scripts
 
   - Pin Opencloud to 5.2.0 [@vhsdream](https://github.com/vhsdream) ([#12721](https://github.com/community-scripts/ProxmoxVE/pull/12721))
