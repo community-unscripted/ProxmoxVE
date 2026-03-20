@@ -1,8 +1,51 @@
 # OpenClaw Configuration Guide
 
+## "Origin Not Allowed" Error Fix
+
+If you see this error when accessing the Control UI from another machine:
+
+```
+origin not allowed (open the Control UI from the gateway host or allow it in gateway.controlUi.allowedOrigins)
+```
+
+**Quick Fix:**
+
+```bash
+# Get your container IP
+CONTAINER_IP=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '127.0.0.1' | head -1)
+
+# Create configuration with allowed origins
+mkdir -p ~/.openclaw
+cat > ~/.openclaw/openclaw.json << EOF
+{
+  "gateway": {
+    "bind": "lan",
+    "port": 18789,
+    "controlUi": {
+      "allowedOrigins": [
+        "http://localhost:18789",
+        "http://127.0.0.1:18789",
+        "http://${CONTAINER_IP}:18789"
+      ]
+    }
+  }
+}
+EOF
+
+# Update service to use lan binding
+sed -i 's|--port 18789|--port 18789 --bind lan|' /etc/systemd/system/openclaw.service
+
+# Apply and restart
+systemctl daemon-reload
+systemctl restart openclaw
+```
+
 ## Network Binding Configuration
 
-By default, OpenClaw binds to localhost (127.0.0.1) only. To make it accessible from other machines on your network, you need to bind to all interfaces (0.0.0.0).
+By default, OpenClaw binds to localhost (127.0.0.1) only. To make it accessible from other machines on your network, you need to:
+
+1. **Bind to all interfaces** (`--bind lan`)
+2. **Configure allowed origins** (required for non-loopback bindings)
 
 ### Bind Options
 
@@ -24,9 +67,30 @@ openclaw configure --section gateway
 systemctl restart openclaw
 ```
 
-### Method 2: Manual Service Edit
+### Method 2: Manual Configuration
 
-Edit the systemd service file:
+Edit both the configuration file and systemd service:
+
+```bash
+# Create/edit the configuration file
+nano ~/.openclaw/openclaw.json
+```
+
+Add the configuration with your IP:
+
+```json
+{
+  "gateway": {
+    "bind": "lan",
+    "port": 18789,
+    "controlUi": {
+      "allowedOrigins": ["http://localhost:18789", "http://127.0.0.1:18789", "http://192.168.31.39:18789"]
+    }
+  }
+}
+```
+
+Then edit the systemd service:
 
 ```bash
 nano /etc/systemd/system/openclaw.service
@@ -46,7 +110,41 @@ systemctl daemon-reload
 systemctl restart openclaw
 ```
 
-### Method 3: Environment Variable
+### Method 3: Quick Fix for Existing Installations
+
+For existing installations, run these commands:
+
+```bash
+# Get your container IP
+CONTAINER_IP=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '127.0.0.1' | head -1)
+
+# Create configuration with allowed origins
+mkdir -p ~/.openclaw
+cat > ~/.openclaw/openclaw.json << EOF
+{
+  "gateway": {
+    "bind": "lan",
+    "port": 18789,
+    "controlUi": {
+      "allowedOrigins": [
+        "http://localhost:18789",
+        "http://127.0.0.1:18789",
+        "http://${CONTAINER_IP}:18789"
+      ]
+    }
+  }
+}
+EOF
+
+# Update service to use lan binding
+sed -i 's|--port 18789|--port 18789 --bind lan|' /etc/systemd/system/openclaw.service
+
+# Apply and restart
+systemctl daemon-reload
+systemctl restart openclaw
+```
+
+### Method 4: Environment Variable
 
 You can also set the bind mode via environment variable:
 
