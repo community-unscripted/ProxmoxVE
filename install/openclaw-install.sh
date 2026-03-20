@@ -120,19 +120,10 @@ cat <<EOF >/etc/caddy/Caddyfile
 :18790 {
     tls internal
     
+    # Caddy automatically handles WebSocket upgrades
     reverse_proxy localhost:18789 {
-        # WebSocket support
         header_up Host {host}
         header_up X-Real-IP {remote_host}
-        header_up X-Forwarded-For {remote_host}
-        header_up X-Forwarded-Proto {scheme}
-        
-        # WebSocket upgrade headers
-        @websockets {
-            header Connection *Upgrade*
-            header Upgrade websocket
-        }
-        reverse_proxy @websockets localhost:18789
     }
     
     # Log requests
