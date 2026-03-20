@@ -35,7 +35,7 @@ msg_ok "Initialized Yao Application"
 mkdir -p /opt/yao/{db,logins,models,flows,scripts,public,logs,icons}
 
 # Generate secure secrets
-YAO_CLIENT_ID=$(cat /proc/sys/kernel/random/uuid)
+YAO_CLIENT_ID=$(cat /proc/sys/kernel/random/uuid | tr -d '-')
 YAO_JWT_SECRET=$(openssl rand -base64 32 | tr -d '/+=' | head -c 32)
 YAO_AES_KEY=$(openssl rand -base64 24 | tr -d '/+=' | head -c 24)
 
