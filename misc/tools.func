@@ -3314,12 +3314,23 @@ function fetch_and_deploy_gh_release() {
       # Network failure - use exponential backoff
       if ((attempt < max_retries)); then
         msg_warn "Network failure (no response), retrying in ${retry_delay}s... (attempt $attempt/$max_retries)"
+        # Debug: test connectivity during retry
+        if ((attempt == 1)); then
+          msg_info "Testing network connectivity..."
+          if curl -fsSL --connect-timeout 5 --max-time 10 "https://api.github.com/rate_limit" &>/dev/null; then
+            msg_ok "Network connectivity test passed - API is reachable"
+          else
+            msg_warn "Network connectivity test FAILED - API is NOT reachable"
+            msg_info "This suggests intermittent network issues during container startup"
+          fi
+        fi
         sleep "$retry_delay"
         retry_delay=$((retry_delay * 2))
         ((retry_delay > 30)) && retry_delay=30
       else
         msg_error "GitHub API connection failed (no response after $max_retries attempts)."
         msg_error "Check your network/DNS: curl -sSL https://api.github.com/rate_limit"
+        msg_error "If network works manually, this may be a Proxmox/LXC network timing issue"
       fi
     else
       sleep "$retry_delay"
