@@ -57,7 +57,7 @@ YAO_DB_AESKEY="${YAO_AES_KEY}"
 YAO_CLIENT_ID="${YAO_CLIENT_ID}"
 
 # Login Redirects
-AFTER_LOGIN_SUCCESS_URL="/dashboard/mission-control"
+AFTER_LOGIN_SUCCESS_URL="/mission-control"
 AFTER_LOGIN_FAILURE_URL="/dashboard/auth/entry"
 
 # Server Configuration
@@ -101,7 +101,7 @@ cat <<'EOF' >/opt/yao/logins/admin.login.json
     "args": [":payload"]
   },
   "layout": {
-    "entry": "/dashboard/mission-control",
+    "entry": "/mission-control",
     "captcha": "yao.utils.Captcha",
     "slogan": "::Build Autonomous Agents with Yao",
     "site": "https://yaoapps.com"
@@ -217,22 +217,22 @@ cat <<'EOF' >/opt/yao/flows/menu.flow.yao
     "items": [
       {
         "name": "Dashboard",
-        "path": "/dashboard/mission-control",
+        "path": "/mission-control",
         "icon": { "name": "material-dashboard", "size": 22 }
       },
       {
         "name": "Agents",
-        "path": "/dashboard/agents",
+        "path": "/agents",
         "icon": { "name": "material-smart_toy", "size": 22 }
       },
       {
         "name": "Data",
-        "path": "/dashboard/data",
+        "path": "/data",
         "icon": { "name": "material-storage", "size": 22 }
       },
       {
         "name": "Settings",
-        "path": "/dashboard/settings",
+        "path": "/settings",
         "icon": { "name": "material-settings", "size": 22 }
       }
     ],
@@ -240,7 +240,7 @@ cat <<'EOF' >/opt/yao/flows/menu.flow.yao
       {
         "icon": { "name": "material-person", "size": 22 },
         "name": "Account",
-        "path": "/dashboard/account"
+        "path": "/account"
       }
     ]
   }
@@ -306,22 +306,22 @@ export function Get() {
     items: [
       {
         name: "Dashboard",
-        path: "/dashboard/mission-control",
+        path: "/mission-control",
         icon: { name: "material-dashboard", size: 22 },
       },
       {
         name: "Agents",
-        path: "/dashboard/agents",
+        path: "/agents",
         icon: { name: "material-smart_toy", size: 22 },
       },
       {
         name: "Data",
-        path: "/dashboard/data",
+        path: "/data",
         icon: { name: "material-storage", size: 22 },
       },
       {
         name: "Settings",
-        path: "/dashboard/settings",
+        path: "/settings",
         icon: { name: "material-settings", size: 22 },
       },
     ],
@@ -329,7 +329,7 @@ export function Get() {
       {
         icon: { name: "material-person", size: 22 },
         name: "Account",
-        path: "/dashboard/account",
+        path: "/account",
       },
     ],
   };
