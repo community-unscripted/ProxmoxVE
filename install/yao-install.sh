@@ -33,10 +33,10 @@ YAO_STUDIO_PORT=5077
 EOF
 msg_ok "Created Environment File"
 
-msg_info "Initializing Demo Application"
+msg_info "Initializing Yao Application"
 cd /opt/yao
-$STD yao get yaoapp/demo-app
-msg_ok "Initialized Demo Application"
+$STD yao init
+msg_ok "Initialized Yao Application"
 
 msg_info "Creating Default Admin User"
 cd /opt/yao
