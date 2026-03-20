@@ -1153,6 +1153,7 @@ prompt_for_github_token() {
 
 # ------------------------------------------------------------------------------
 # GitHub API call with authentication and rate limit handling
+# Uses consistent network timeouts for reliability
 # ------------------------------------------------------------------------------
 github_api_call() {
   local url="$1"
@@ -1166,7 +1167,9 @@ github_api_call() {
   local attempt=1
   while ((attempt <= max_retries)); do
     local http_code
-    http_code=$(curl -sSL -w "%{http_code}" -o "$output_file" \
+    # Use consistent network timeouts (defined at top of file)
+    http_code=$(curl -sSL --connect-timeout "${NETWORK_CONNECT_TIMEOUT}" --max-time "${NETWORK_MAX_TIMEOUT}" \
+      -w "%{http_code}" -o "$output_file" \
       -H "Accept: application/vnd.github+json" \
       -H "X-GitHub-Api-Version: 2022-11-28" \
       "${header_args[@]}" \
@@ -2221,7 +2224,9 @@ check_for_gh_release() {
   local releases_json="" http_code=""
 
   if [[ -z "$pinned_version_in" ]]; then
-    http_code=$(curl -sSL --max-time 20 -w "%{http_code}" -o /tmp/gh_check.json \
+    # Use consistent network timeouts (defined at top of file)
+    http_code=$(curl -sSL --connect-timeout "${NETWORK_CONNECT_TIMEOUT}" --max-time "${NETWORK_MAX_TIMEOUT}" \
+      -w "%{http_code}" -o /tmp/gh_check.json \
       -H 'Accept: application/vnd.github+json' \
       -H 'X-GitHub-Api-Version: 2022-11-28' \
       "${header_args[@]}" \
@@ -2250,7 +2255,9 @@ check_for_gh_release() {
 
   # If no releases yet (pinned version OR /latest failed), fetch up to 100
   if [[ -z "$releases_json" ]]; then
-    http_code=$(curl -sSL --max-time 20 -w "%{http_code}" -o /tmp/gh_check.json \
+    # Use consistent network timeouts (defined at top of file)
+    http_code=$(curl -sSL --connect-timeout "${NETWORK_CONNECT_TIMEOUT}" --max-time "${NETWORK_MAX_TIMEOUT}" \
+      -w "%{http_code}" -o /tmp/gh_check.json \
       -H 'Accept: application/vnd.github+json' \
       -H 'X-GitHub-Api-Version: 2022-11-28' \
       "${header_args[@]}" \
@@ -3068,6 +3075,50 @@ function fetch_and_deploy_codeberg_release() {
 # ------------------------------------------------------------------------------
 
 # ------------------------------------------------------------------------------
+# Network warmup constants (consistent timeouts across all network operations)
+# These are exported for use by other functions
+# ------------------------------------------------------------------------------
+NETWORK_CONNECT_TIMEOUT="${NETWORK_CONNECT_TIMEOUT:-10}"
+NETWORK_MAX_TIMEOUT="${NETWORK_MAX_TIMEOUT:-60}"
+
+# ------------------------------------------------------------------------------
+# _dns_warmup()
+#
+# Pre-resolves DNS for critical hosts to warm up DNS cache.
+# This prevents DNS resolution delays during actual API calls.
+#
+# Arguments: None
+# Returns: 0 always (best effort, failures are ignored)
+# ------------------------------------------------------------------------------
+_dns_warmup() {
+  local hosts=("api.github.com" "github.com" "raw.githubusercontent.com")
+  for host in "${hosts[@]}"; do
+    # Force DNS resolution and cache it
+    getent hosts "$host" &>/dev/null || true
+  done
+  # Small delay to let DNS cache settle
+  sleep 1
+}
+
+# ------------------------------------------------------------------------------
+# _connection_warmup()
+#
+# Makes a warmup API call to establish the connection before the actual call.
+# This ensures the TCP/TLS connection is fully established and stable.
+#
+# Arguments: None
+# Returns: 0 always (best effort, failures are ignored)
+# ------------------------------------------------------------------------------
+_connection_warmup() {
+  local warmup_url="https://api.github.com/rate_limit"
+  # Make a warmup call and discard the result
+  # Use consistent timeouts
+  curl -4 -fsSL --connect-timeout "${NETWORK_CONNECT_TIMEOUT}" --max-time 30 "$warmup_url" &>/dev/null || true
+  # Small delay to let connection stabilize
+  sleep 2
+}
+
+# ------------------------------------------------------------------------------
 # Wait for HTTPS connectivity to be ready
 # This is needed because DNS resolution and ping can work before HTTPS is ready
 # during container startup (race condition with network stack initialization)
@@ -3097,15 +3148,17 @@ wait_for_https_readiness() {
 
   while ((waited < max_wait)); do
     # Force IPv4 to avoid IPv6 timeout issues in containers with broken IPv6
-    if curl -4 -fsSL --connect-timeout 3 --max-time 10 "$test_url" &>/dev/null; then
+    # Use consistent timeout settings
+    if curl -4 -fsSL --connect-timeout "${NETWORK_CONNECT_TIMEOUT}" --max-time 15 "$test_url" &>/dev/null; then
       ((success_count++))
       msg_ok "HTTPS check ${success_count}/${required_successes} passed"
       if ((success_count >= required_successes)); then
         msg_ok "HTTPS connectivity verified after ${waited}s"
         # Additional stabilization delay after successful checks
         # Network can be intermittent during container startup
-        msg_info "Waiting 5s for network to stabilize..."
-        sleep 5
+        # Increased from 5s to 10s for better reliability
+        msg_info "Waiting 10s for network to stabilize..."
+        sleep 10
         return 0
       fi
       # Wait between successful checks to ensure stability
@@ -3248,7 +3301,8 @@ function fetch_and_deploy_gh_release() {
   local app_lc=$(echo "${app,,}" | tr -d ' ')
   local version_file="$HOME/.${app_lc}"
 
-  local api_timeout="--connect-timeout 10 --max-time 60"
+  # Use consistent network timeouts (defined at top of file)
+  local api_timeout="--connect-timeout ${NETWORK_CONNECT_TIMEOUT} --max-time ${NETWORK_MAX_TIMEOUT}"
   local download_timeout="--connect-timeout 15 --max-time 900"
 
   local current_version=""
@@ -3278,6 +3332,13 @@ function fetch_and_deploy_gh_release() {
     msg_error "Check your network configuration and firewall rules"
     return 1
   fi
+
+  # Additional network warmup: DNS resolution and connection establishment
+  # This prevents race conditions where readiness checks pass but actual API calls fail
+  msg_info "Warming up DNS and network connection..."
+  _dns_warmup
+  _connection_warmup
+  msg_ok "Network warmup complete"
 
   local max_retries=5 retry_delay=2 attempt=1 success=false http_code
 
@@ -3316,11 +3377,11 @@ function fetch_and_deploy_gh_release() {
       # Network failure - use exponential backoff
       if ((attempt < max_retries)); then
         msg_warn "Network failure (no response), retrying in ${retry_delay}s... (attempt $attempt/$max_retries)"
-        # Debug: test connectivity during retry
+        # Debug: test connectivity during retry with consistent timeouts
         if ((attempt == 1)); then
           msg_info "Testing network connectivity..."
-          # Force IPv4 to avoid IPv6 timeout issues
-          if curl -4 -fsSL --connect-timeout 5 --max-time 10 "https://api.github.com/rate_limit" &>/dev/null; then
+          # Force IPv4 to avoid IPv6 timeout issues, use consistent timeouts
+          if curl -4 -fsSL --connect-timeout "${NETWORK_CONNECT_TIMEOUT}" --max-time 15 "https://api.github.com/rate_limit" &>/dev/null; then
             msg_ok "Network connectivity test passed - API is reachable"
           else
             msg_warn "Network connectivity test FAILED - API is NOT reachable"
