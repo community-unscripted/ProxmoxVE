@@ -22,6 +22,7 @@ msg_ok "Installed Dependencies"
 fetch_and_deploy_gh_release "yao" "YaoApp/yao" "singlefile" "latest" "/usr/local/bin" "yao-*-linux-*"
 
 msg_info "Creating Application Directory"
+rm -rf /opt/yao
 mkdir -p /opt/yao
 msg_ok "Created Application Directory"
 
