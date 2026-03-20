@@ -21,8 +21,13 @@ msg_ok "Installed Dependencies"
 fetch_and_deploy_gh_release "yao" "YaoApp/yao" "singlefile" "latest" "/usr/local/bin" "yao-*-linux-*"
 
 msg_info "Creating Application Directory"
-mkdir -p /opt/yao/data
+mkdir -p /root/.yao/bin
 msg_ok "Created Application Directory"
+
+msg_info "Initializing Yao Application"
+cd /root/.yao/bin
+$STD /usr/local/bin/yao start
+msg_ok "Initialized Yao Application"
 
 msg_info "Creating Service"
 cat <<EOF >/etc/systemd/system/yao.service
@@ -34,7 +39,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/opt/yao
+WorkingDirectory=/root/.yao/bin
 ExecStart=/usr/local/bin/yao start
 Restart=on-failure
 RestartSec=5
