@@ -1,5 +1,35 @@
 # OpenClaw Configuration Guide
 
+## "Device Identity Required" Error Fix
+
+If you see this error when accessing the Control UI from another machine:
+
+```
+control ui requires device identity (use HTTPS or localhost secure context)
+```
+
+**This is a browser security requirement.** The Web Crypto API (used for device identity) only works in secure contexts - either HTTPS or localhost.
+
+### Solution 1: SSH Tunnel (Recommended for LAN)
+
+Access OpenClaw via localhost through an SSH tunnel:
+
+```bash
+# On your local machine, create an SSH tunnel
+ssh -L 18789:localhost:18789 root@<container-ip>
+
+# Then access in your browser
+http://localhost:18789
+```
+
+### Solution 2: HTTPS Reverse Proxy (Production)
+
+Set up Caddy or Nginx with SSL certificates for secure HTTPS access.
+
+### Solution 3: Tailscale VPN
+
+Install Tailscale on both machines and access via Tailscale IP.
+
 ## "Origin Not Allowed" Error Fix
 
 If you see this error when accessing the Control UI from another machine:
@@ -39,6 +69,8 @@ sed -i 's|--port 18789|--port 18789 --bind lan|' /etc/systemd/system/openclaw.se
 systemctl daemon-reload
 systemctl restart openclaw
 ```
+
+**Note:** Even with `allowedOrigins` configured, you still need a secure context (HTTPS or localhost) for the device identity requirement. Use SSH tunneling for LAN access.
 
 ## Network Binding Configuration
 
