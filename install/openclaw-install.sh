@@ -56,6 +56,17 @@ if ! id -u openclaw &>/dev/null; then
 fi
 msg_ok "Created OpenClaw User"
 
+# Configure npm to use user-writable directory for global packages
+msg_info "Configuring npm for User Packages"
+mkdir -p /home/openclaw/.npm-global
+chown -R openclaw:openclaw /home/openclaw/.npm-global
+# Set npm prefix for openclaw user to use home directory
+run_user_cmd="su - openclaw -c"
+$run_user_cmd "npm config set prefix /home/openclaw/.npm-global"
+# Add to PATH for openclaw user
+echo 'export PATH=/home/openclaw/.npm-global/bin:$PATH' >> /home/openclaw/.bashrc
+msg_ok "Configured npm for User Packages"
+
 msg_info "Installing OpenClaw"
 $STD npm install -g openclaw@latest
 msg_ok "Installed OpenClaw"
@@ -156,6 +167,7 @@ User=openclaw
 Group=openclaw
 WorkingDirectory=/opt/openclaw
 Environment=NODE_ENV=production
+Environment=PATH=/home/openclaw/.npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 ExecStart=/usr/bin/openclaw gateway --port 18789 --bind lan
 Restart=on-failure
 RestartSec=10
