@@ -29,6 +29,13 @@ fi
 mkdir -p /root/.yao/bin
 msg_ok "Created Application Directory"
 
+msg_info "Creating Environment File"
+cat <<EOF >/root/.yao/bin/.env
+YAO_PORT=5099
+YAO_STUDIO_PORT=5077
+EOF
+msg_ok "Created Environment File"
+
 msg_info "Creating Service"
 cat <<EOF >/etc/systemd/system/yao.service
 [Unit]
@@ -43,8 +50,7 @@ WorkingDirectory=/root/.yao/bin
 ExecStart=/usr/local/bin/yao start
 Restart=on-failure
 RestartSec=5
-Environment=YAO_PORT=5099
-Environment=YAO_STUDIO_PORT=5077
+EnvironmentFile=/root/.yao/bin/.env
 
 [Install]
 WantedBy=multi-user.target
