@@ -24,7 +24,8 @@ $STD apt-get install -y \
   git \
   procps \
   debian-keyring \
-  debian-archive-keyring
+  debian-archive-keyring \
+  ffmpeg
 msg_ok "Installed Dependencies"
 
 # Install Caddy for HTTPS reverse proxy
@@ -44,86 +45,6 @@ msg_info "Installing uv (Python Package Manager)"
 $STD curl -LsSf https://astral.sh/uv/install.sh | sh
 export PATH="$HOME/.local/bin:$PATH"
 msg_ok "Installed uv"
-
-# Install Homebrew (Linuxbrew) - optional for OpenClaw skills
-# Note: Homebrew is optional and used for some skills like ffmpeg
-# If installation fails, OpenClaw will still work, just some skills may need manual setup
-msg_info "Installing Homebrew (Linuxbrew) - Optional"
-HOMEBREW_SUCCESS=false
-# Homebrew refuses to install as root, so we use the alternative untar method
-# This installs to /home/linuxbrew/.linuxbrew which is the recommended location
-if [[ $EUID -eq 0 ]]; then
-  # Create the linuxbrew directory with proper permissions
-  mkdir -p /home/linuxbrew/.linuxbrew
-  chmod 775 /home/linuxbrew
-  chmod 775 /home/linuxbrew/.linuxbrew
-  
-  # Download and extract Homebrew (alternative installation method)
-  cd /tmp
-  # Try to download Homebrew tarball with retry
-  for i in 1 2 3; do
-    if curl -fsSL https://github.com/Homebrew/brew/tarball/master -o /tmp/homebrew.tar.gz; then
-      if tar xzf /tmp/homebrew.tar.gz --strip 1 -C /home/linuxbrew/.linuxbrew 2>/dev/null; then
-        HOMEBREW_SUCCESS=true
-        break
-      fi
-    fi
-    msg_info "Homebrew download attempt $i failed, retrying..."
-    sleep 2
-  done
-  
-  if [[ "$HOMEBREW_SUCCESS" == "true" ]]; then
-    # Set permissions so brew can be run by anyone
-    chown -R root:root /home/linuxbrew/.linuxbrew
-    chmod -R g+w /home/linuxbrew/.linuxbrew
-    
-    # Create symlinks for easy access
-    ln -sf /home/linuxbrew/.linuxbrew/bin/brew /usr/local/bin/brew 2>/dev/null || true
-    
-    # Add to bashrc for persistence
-    if ! grep -q 'linuxbrew/.linuxbrew/bin/brew' /root/.bashrc 2>/dev/null; then
-      echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >>/root/.bashrc
-    fi
-    
-    # Add to system profile for all users
-    if ! grep -q 'linuxbrew/.linuxbrew' /etc/profile 2>/dev/null; then
-      echo 'export PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"' >>/etc/profile
-    fi
-    
-    # Make brew available in current session
-    export PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"
-    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv 2>/dev/null)" || true
-    msg_ok "Installed Homebrew"
-  else
-    msg_error "Failed to install Homebrew - some skills may need manual setup"
-    msg_info "You can install Homebrew manually later with: /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
-  fi
-else
-  # Not running as root, install normally
-  if $STD /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"; then
-    HOMEBREW_SUCCESS=true
-    msg_ok "Installed Homebrew"
-  else
-    msg_error "Failed to install Homebrew - some skills may need manual setup"
-  fi
-fi
-
-# Install common brew dependencies for OpenClaw skills (only if Homebrew installed successfully)
-if [[ "$HOMEBREW_SUCCESS" == "true" ]]; then
-  msg_info "Installing Homebrew Dependencies"
-  if command -v brew &>/dev/null || [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
-    # Use the full path to brew if not in PATH
-    BREW_CMD="${BREW_CMD:-/home/linuxbrew/.linuxbrew/bin/brew}"
-    if [[ ! -x "$BREW_CMD" ]]; then
-      BREW_CMD="brew"
-    fi
-    # Install ffmpeg for video-frames skill
-    $STD $BREW_CMD install ffmpeg 2>/dev/null || true
-    # Note: Other brew packages (camsnap, obsidian, summarize, songsee) require specific taps
-    # These can be installed manually by the user if needed
-  fi
-  msg_ok "Installed Homebrew Dependencies"
-fi
 
 msg_info "Installing OpenClaw"
 $STD npm install -g openclaw@latest
