@@ -587,6 +587,31 @@ msg_ok "Reloaded Nginx"
 # FINALIZATION
 # ==============================================================================
 
+# Store credentials securely (not displayed in console for security)
+cat <<EOF >/opt/ragflow/CREDENTIALS.txt
+RAGFlow Credentials
+==================
+
+Database:
+  MariaDB User: rag_flow
+  MariaDB Password: ${MARIADB_DB_PASS}
+
+Elasticsearch:
+  Username: elastic
+  Password: ${ES_PASS}
+
+Redis:
+  Password: ${REDIS_PASS}
+
+MinIO:
+  User: rag_flow
+  Password: ${MINIO_PASS}
+
+IMPORTANT: This file contains sensitive credentials.
+Secure this file: chmod 600 /opt/ragflow/CREDENTIALS.txt
+EOF
+chmod 600 /opt/ragflow/CREDENTIALS.txt
+
 motd_ssh
 customize
 cleanup_lxc
@@ -599,13 +624,8 @@ echo -e "${TAB}${GATEWAY}${BGN}http://${LOCAL_IP}:80${CL}"
 echo -e "${INFO}${YW} API endpoint: http://${LOCAL_IP}:9380${CL}"
 echo -e "${INFO}${YW} MinIO Console: http://${LOCAL_IP}:9001${CL}"
 echo -e ""
-echo -e "${INFO}${YW} Credentials:${CL}"
-echo -e "${TAB}- MariaDB User: rag_flow"
-echo -e "${TAB}- MariaDB Password: ${MARIADB_DB_PASS}"
-echo -e "${TAB}- Elasticsearch Password: ${ES_PASS}"
-echo -e "${TAB}- Redis Password: ${REDIS_PASS}"
-echo -e "${TAB}- MinIO User: rag_flow"
-echo -e "${TAB}- MinIO Password: ${MINIO_PASS}"
+echo -e "${INFO}${YW} Credentials saved to: /opt/ragflow/CREDENTIALS.txt${CL}"
+echo -e "${TAB}View with: sudo cat /opt/ragflow/CREDENTIALS.txt"
 echo -e ""
 echo -e "${INFO}${YW} Configuration files:${CL}"
 echo -e "${TAB}- /opt/ragflow/conf/service_conf.yaml"

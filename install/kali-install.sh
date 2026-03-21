@@ -48,8 +48,8 @@ msg_info "Configuring Kali Environment"
 # Ensure Kali repositories are configured
 if [[ ! -f /etc/apt/sources.list.d/kali.list ]]; then
   cat <<EOF > /etc/apt/sources.list.d/kali.list
-# Kali Linux Repository
-deb http://http.kali.org/kali kali-rolling main contrib non-free non-free-firmware
+# Kali Linux Repository (HTTPS for security)
+deb https://http.kali.org/kali kali-rolling main contrib non-free non-free-firmware
 EOF
 fi
 

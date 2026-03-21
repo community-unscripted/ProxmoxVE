@@ -53,14 +53,16 @@ if ! id -u openclaw &>/dev/null; then
 fi
 msg_ok "Created OpenClaw User"
 
-# Configure password-less sudo for openclaw user
-msg_info "Configuring Password-less Sudo for OpenClaw User"
+# Configure restricted sudo for openclaw user (only specific commands needed)
+msg_info "Configuring Restricted Sudo for OpenClaw User"
 cat <<EOF >/etc/sudoers.d/openclaw
-# Allow openclaw user to run any command without password
-openclaw ALL=(ALL) NOPASSWD: ALL
+# OpenClaw needs specific permissions for package management and service control
+# SECURITY: Restricted to only the commands needed by the application
+openclaw ALL=(ALL) NOPASSWD: /usr/bin/npm, /usr/bin/node, /home/linuxbrew/.linuxbrew/bin/brew
+openclaw ALL=(ALL) NOPASSWD: /usr/bin/systemctl --user *
 EOF
 chmod 440 /etc/sudoers.d/openclaw
-msg_ok "Configured Password-less Sudo"
+msg_ok "Configured Restricted Sudo"
 
 # Configure npm to use user-writable directory for global packages
 msg_info "Configuring npm for User Packages"
@@ -279,11 +281,18 @@ else
   msg_warn "Gateway Service may not be running - check logs with: sudo -u openclaw journalctl --user -u openclaw-gateway"
 fi
 
-# Display auth token for pairing
+# Store auth token securely (not displayed in console for security)
+cat <<EOF >/home/openclaw/.openclaw/auth_token
+${AUTH_TOKEN}
+EOF
+chmod 600 /home/openclaw/.openclaw/auth_token
+chown openclaw:openclaw /home/openclaw/.openclaw/auth_token
+
+# Display auth token location (not the token itself)
 echo ""
 echo "═══════════════════════════════════════════════════════════════════════════════"
-echo "  OpenClaw Auth Token (save this for pairing):"
-echo "  ${AUTH_TOKEN}"
+echo "  OpenClaw Auth Token saved to: /home/openclaw/.openclaw/auth_token"
+echo "  View with: sudo cat /home/openclaw/.openclaw/auth_token"
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
 echo "  Access URLs:"

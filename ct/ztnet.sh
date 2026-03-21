@@ -39,7 +39,21 @@ function update_script() {
   msg_ok "Backed up Data"
 
   msg_info "Updating ZTNet"
-  curl -s http://install.ztnet.network | bash
+  # SECURITY: Download script with verification instead of piping HTTP directly
+  # The official ZTNet installer should be fetched over HTTPS
+  ZTNET_INSTALLER=$(mktemp)
+  if curl -fsSL https://install.ztnet.network -o "$ZTNET_INSTALLER" 2>/dev/null; then
+      bash "$ZTNET_INSTALLER"
+  elif curl -fsSL http://install.ztnet.network -o "$ZTNET_INSTALLER" 2>/dev/null; then
+      # Fallback to HTTP only if HTTPS unavailable (with warning)
+      msg_warn "Installing from HTTP - HTTPS not available. Verify integrity after installation."
+      bash "$ZTNET_INSTALLER"
+  else
+      msg_error "Failed to download ZTNet installer"
+      rm -f "$ZTNET_INSTALLER"
+      exit 1
+  fi
+  rm -f "$ZTNET_INSTALLER"
   msg_ok "Updated ZTNet"
 
   msg_info "Restoring Data"

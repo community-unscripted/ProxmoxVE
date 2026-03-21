@@ -38,6 +38,7 @@ mkdir -p /opt/yao/{db,logins,models,flows,scripts,public,logs,icons}
 YAO_CLIENT_ID=$(cat /proc/sys/kernel/random/uuid | tr -d '-')
 YAO_JWT_SECRET=$(openssl rand -base64 32 | tr -d '/+=' | head -c 32)
 YAO_AES_KEY=$(openssl rand -base64 24 | tr -d '/+=' | head -c 24)
+YAO_ADMIN_PASSWORD=$(openssl rand -base64 12 | tr -dc 'a-zA-Z0-9' | head -c 16)
 
 msg_info "Creating Environment File"
 cat <<EOF >/opt/yao/.env
@@ -249,19 +250,23 @@ EOF
 msg_ok "Created Menu Flow"
 
 msg_info "Creating Setup Script"
-cat <<'EOF' >/opt/yao/scripts/setup.ts
+cat <<EOF >/opt/yao/scripts/setup.ts
 import { Process, Model } from "@yao/runtime";
 
 /**
  * Initialize the application
  * Creates the default admin user if not exists
+ * Password is read from environment variable YAO_ADMIN_PASSWORD
  */
 export function Init() {
+  // Get password from environment variable (set during installation)
+  const adminPassword = process.env.YAO_ADMIN_PASSWORD || "changeme";
+  
   // Create default admin user
   const adminData = {
     name: "Admin",
     email: "root@yaoagents.com",
-    password: "Yao123++",
+    password: adminPassword,
     type: "admin",
     status: "enabled",
   };
@@ -445,7 +450,7 @@ cat <<'EOF' >/opt/yao/public/index.html
     </div>
     <div class="info">
       <p><strong>Port:</strong> 5099</p>
-      <p><strong>Default Login:</strong> root@yaoagents.com / Yao123++</p>
+      <p><strong>Default Login:</strong> root@yaoagents.com / <see CREDENTIALS.txt></p>
     </div>
     <a href="/dashboard/auth/entry" class="admin-link">Open Dashboard</a>
     <div class="links">
@@ -465,8 +470,22 @@ msg_ok "Database Migration Complete"
 
 msg_info "Creating Default Admin User"
 cd /opt/yao
+# Pass the generated password to the setup script via environment variable
+export YAO_ADMIN_PASSWORD="${YAO_ADMIN_PASSWORD}"
 $STD yao run scripts.setup.Init || true
 msg_ok "Created Default Admin User"
+
+# Store credentials securely
+cat <<EOF >/opt/yao/CREDENTIALS.txt
+Yao Admin Credentials
+=====================
+Email: root@yaoagents.com
+Password: ${YAO_ADMIN_PASSWORD}
+
+IMPORTANT: Change this password after first login!
+This file contains sensitive credentials - secure it appropriately.
+EOF
+chmod 600 /opt/yao/CREDENTIALS.txt
 
 msg_info "Creating Service"
 cat <<EOF >/etc/systemd/system/yao.service

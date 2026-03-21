@@ -44,7 +44,16 @@ get_lxc_ip
 # =============================================================================
 
 msg_info "Installing Rust (nightly)"
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
+# SECURITY: Download script first, verify it exists, then execute
+RUSTUP_SCRIPT=$(mktemp)
+if curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o "$RUSTUP_SCRIPT" && [ -s "$RUSTUP_SCRIPT" ]; then
+    sh "$RUSTUP_SCRIPT" -s -- -y --default-toolchain nightly
+    rm -f "$RUSTUP_SCRIPT"
+else
+    msg_error "Failed to download Rust installer"
+    rm -f "$RUSTUP_SCRIPT"
+    exit 1
+fi
 export PATH="/root/.cargo/bin:$PATH"
 msg_ok "Installed Rust (nightly)"
 

@@ -150,6 +150,9 @@ systemctl start pentagi
 msg_ok "Started PentAGI Service"
 
 
+# Generate random admin password for web interface
+ADMIN_PASSWORD=$(openssl rand -base64 12 | tr -dc 'a-zA-Z0-9' | head -c 16)
+
 # Store credentials for user reference
 cat <<EOF >/opt/pentagi/CREDENTIALS.txt
 PentAGI Credentials
@@ -158,7 +161,7 @@ PentAGI Credentials
 Web Interface:
   URL: https://${LOCAL_IP}:8443
   Default Username: admin@pentagi.com
-  Default Password: admin
+  Default Password: ${ADMIN_PASSWORD}
 
 PostgreSQL Database:
   User: postgres
@@ -337,11 +340,12 @@ echo " PentAGI Installation Complete!"
 echo "=========================================="
 echo ""
 echo "Access the web interface at: https://${LOCAL_IP}:8443"
-echo "Default credentials: admin@pentagi.com / admin"
+echo "Default credentials: admin@pentagi.com / <see CREDENTIALS.txt>"
 echo ""
 echo "IMPORTANT: Configure your LLM provider API key before use!"
 echo "See /opt/pentagi/CONFIGURATION.md for detailed setup instructions."
 echo "Credentials are stored in /opt/pentagi/CREDENTIALS.txt"
+echo "View credentials: cat /opt/pentagi/CREDENTIALS.txt"
 echo ""
 echo "Start the service with: systemctl start pentagi"
 echo "=========================================="
