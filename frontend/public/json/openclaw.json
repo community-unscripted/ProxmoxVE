@@ -95,7 +95,7 @@
       "type": "info"
     },
     {
-      "text": "The openclaw user has no login shell - use 'sudo -u openclaw <command>' to run commands",
+      "text": "The openclaw user has no login shell - use full path '/home/openclaw/.npm-global/bin/openclaw' or 'export PATH=/home/openclaw/.npm-global/bin:$PATH' to run commands",
       "type": "warning"
     },
     {
