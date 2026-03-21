@@ -87,11 +87,7 @@
       "type": "info"
     },
     {
-      "text": "Auth token is displayed during installation - save it for pairing devices",
-      "type": "warning"
-    },
-    {
-      "text": "Homebrew is installed automatically - use 'sudo -u openclaw brew install <package>' to install additional tools",
+      "text": "Auth token saved to /home/openclaw/.openclaw/auth_token - view with: cat /home/openclaw/.openclaw/auth_token",
       "type": "info"
     },
     {
@@ -99,15 +95,11 @@
       "type": "warning"
     },
     {
-      "text": "LXC Container: Uses system-level service (systemctl start/stop/restart openclaw-gateway)",
+      "text": "Service management: systemctl start/stop/restart/status openclaw-gateway",
       "type": "info"
     },
     {
-      "text": "LXC Container: View logs with 'journalctl -u openclaw-gateway -f'",
-      "type": "info"
-    },
-    {
-      "text": "LXC Container: Service runs as openclaw user via systemd User= directive",
+      "text": "View logs: journalctl -u openclaw-gateway -f",
       "type": "info"
     }
   ]
