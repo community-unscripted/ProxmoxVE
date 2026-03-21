@@ -51,7 +51,8 @@ function update_script() {
   msg_info "Updating OpenClaw from v${CURRENT_VERSION} to v${LATEST_VERSION}"
   
   msg_info "Stopping Gateway Service"
-  sudo -u openclaw systemctl --user stop openclaw-gateway 2>/dev/null || true
+  # LXC containers use system-level service, not user-level
+  systemctl stop openclaw-gateway 2>/dev/null || true
   msg_ok "Stopped Gateway Service"
 
   msg_info "Backing up Configuration"
@@ -78,18 +79,19 @@ function update_script() {
   fi
 
   msg_info "Starting Gateway Service"
-  sudo -u openclaw systemctl --user start openclaw-gateway 2>/dev/null || true
+  # LXC containers use system-level service, not user-level
+  systemctl start openclaw-gateway 2>/dev/null || true
   
   # Wait for service to start
   sleep 3
   
   # Check if service is running
-  if sudo -u openclaw systemctl --user is-active openclaw-gateway 2>/dev/null | grep -q "active"; then
+  if systemctl is-active --quiet openclaw-gateway; then
     msg_ok "Gateway Service Started"
   else
     msg_warn "Gateway Service may not have started properly"
     msg_info "Checking service status..."
-    sudo -u openclaw systemctl --user status openclaw-gateway 2>/dev/null || true
+    systemctl status openclaw-gateway --no-pager || true
   fi
   
   msg_ok "Updated successfully to v${LATEST_VERSION}!"
@@ -99,15 +101,13 @@ function update_script() {
   echo "  Post-Update Verification"
   echo "═══════════════════════════════════════════════════════════════════════════════"
   echo ""
-  echo "  Note: The openclaw user has no login shell. Use 'sudo -u openclaw' to run commands."
-  echo ""
   echo "  Run these commands to verify the update:"
-  echo "    sudo -u openclaw openclaw --version"
-  echo "    sudo -u openclaw openclaw doctor"
-  echo "    sudo -u openclaw openclaw gateway status"
+  echo "    /home/openclaw/.npm-global/bin/openclaw --version"
+  echo "    /home/openclaw/.npm-global/bin/openclaw doctor"
+  echo "    /home/openclaw/.npm-global/bin/openclaw gateway status"
   echo ""
   echo "  View logs if issues occur:"
-  echo "    sudo -u openclaw openclaw logs --follow"
+  echo "    journalctl -u openclaw-gateway -f"
   echo ""
   echo "  Backup saved to: $BACKUP_DIR"
   echo ""

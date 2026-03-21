@@ -219,49 +219,57 @@ chown caddy:caddy /var/log/caddy
 systemctl enable -q caddy
 msg_ok "Created Caddy HTTPS Reverse Proxy"
 
-msg_info "Enabling Lingering for OpenClaw User"
-# Enable lingering so user-level systemd services start on boot
-loginctl enable-linger openclaw 2>/dev/null || true
-msg_ok "Enabled Lingering"
+# ═══════════════════════════════════════════════════════════════════════════════
+# Systemd Service Setup for LXC Containers
+# ═══════════════════════════════════════════════════════════════════════════════
+# LXC containers have limited systemd user session support due to D-Bus limitations.
+# We use system-level services with User=openclaw directive instead of user services.
+# ═══════════════════════════════════════════════════════════════════════════════
 
-msg_info "Installing OpenClaw Gateway Service"
-# Run OpenClaw onboarding to create user-level systemd service properly
-# Using --non-interactive with essential defaults
-export PATH="/home/openclaw/.npm-global/bin:$PATH"
-export OPENCLAW_CONFIG_PATH="/home/openclaw/.openclaw/openclaw.json"
+msg_info "Creating System-Level Systemd Service (LXC Mode)"
 
-# Install the gateway service using the recommended method
-# Using sudo -u since openclaw user has nologin shell
-# IMPORTANT: Run from openclaw's home directory to avoid permission errors
-# This is required for brew and other tools that check directory permissions
-cd /home/openclaw && sudo -u openclaw env PATH="/home/openclaw/.npm-global/bin:$PATH" openclaw gateway install 2>/dev/null || true
+# Create compile cache directory for Node.js optimization
+mkdir -p /var/tmp/openclaw-compile-cache
+chown openclaw:openclaw /var/tmp/openclaw-compile-cache
 
-# If the service wasn't created, create it manually
-if [[ ! -f /home/openclaw/.config/systemd/user/openclaw-gateway.service ]]; then
-  msg_info "Creating Manual Systemd Service"
-  mkdir -p /home/openclaw/.config/systemd/user
-  cat <<EOF >/home/openclaw/.config/systemd/user/openclaw-gateway.service
+# Create system-level service file
+cat <<EOF >/etc/systemd/system/openclaw-gateway.service
 [Unit]
 Description=OpenClaw Gateway
 Documentation=https://docs.openclaw.ai
-After=network.target
+After=network.target network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
+User=openclaw
+Group=openclaw
 WorkingDirectory=/home/openclaw/.openclaw
 Environment="PATH=/home/openclaw/.npm-global/bin:/usr/local/bin:/usr/bin:/bin"
 Environment="OPENCLAW_CONFIG_PATH=/home/openclaw/.openclaw/openclaw.json"
+Environment="NODE_COMPILE_CACHE=/var/tmp/openclaw-compile-cache"
+Environment="OPENCLAW_NO_RESPAWN=1"
 ExecStart=/home/openclaw/.npm-global/bin/openclaw gateway
 Restart=on-failure
 RestartSec=10
 
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/openclaw/.openclaw /var/tmp/openclaw-compile-cache
+
 [Install]
-WantedBy=default.target
+WantedBy=multi-user.target
 EOF
-  chown -R openclaw:openclaw /home/openclaw/.config
-  chmod 600 /home/openclaw/.config/systemd/user/openclaw-gateway.service
-fi
-msg_ok "Installed OpenClaw Gateway Service"
+
+# Reload systemd daemon
+systemctl daemon-reload
+
+# Enable the service
+systemctl enable -q openclaw-gateway
+
+msg_ok "Created System-Level Service"
 
 msg_info "Starting Caddy HTTPS Proxy"
 # Restart Caddy to apply configuration
@@ -269,23 +277,42 @@ systemctl restart caddy
 msg_ok "Started Caddy HTTPS Proxy"
 
 msg_info "Starting OpenClaw Gateway"
-# Start the gateway service as the openclaw user
-# Using sudo -u since openclaw user has nologin shell
-# IMPORTANT: Run from openclaw's home directory to avoid permission errors
-cd /home/openclaw && sudo -u openclaw systemctl --user enable openclaw-gateway 2>/dev/null || true
-cd /home/openclaw && sudo -u openclaw systemctl --user start openclaw-gateway 2>/dev/null || true
-msg_ok "Started OpenClaw Gateway"
+systemctl start openclaw-gateway
 
 # Wait for gateway to be ready
-msg_info "Verifying Installation"
 sleep 5
 
 # Check if gateway is running
-# IMPORTANT: Run from openclaw's home directory to avoid permission errors
-cd /home/openclaw && if sudo -u openclaw systemctl --user is-active openclaw-gateway 2>/dev/null | grep -q "active"; then
-  msg_ok "Gateway Service is Active"
+if systemctl is-active --quiet openclaw-gateway; then
+  msg_ok "Gateway Service Started Successfully"
 else
-  msg_warn "Gateway Service may not be running - check logs with: sudo -u openclaw journalctl --user -u openclaw-gateway"
+  msg_error "Gateway Service Failed to Start"
+  msg_info "Checking service status..."
+  systemctl status openclaw-gateway --no-pager || true
+  msg_info "View logs with: journalctl -u openclaw-gateway -f"
+fi
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Final Verification
+# ═══════════════════════════════════════════════════════════════════════════════
+
+msg_info "Verifying Installation"
+
+# Check if gateway port is listening
+sleep 3
+if command -v ss &>/dev/null; then
+  if ss -tln | grep -q ":18789"; then
+    msg_ok "Gateway Port 18789 is Listening"
+  else
+    msg_warn "Gateway Port 18789 Not Yet Listening - Service May Still Be Starting"
+  fi
+fi
+
+# Check if Caddy is running and proxy is configured
+if systemctl is-active --quiet caddy; then
+  msg_ok "Caddy HTTPS Proxy is Running"
+else
+  msg_warn "Caddy Service Not Running - HTTPS Access Unavailable"
 fi
 
 # Store auth token securely (not displayed in console for security)
@@ -295,22 +322,44 @@ EOF
 chmod 600 /home/openclaw/.openclaw/auth_token
 chown openclaw:openclaw /home/openclaw/.openclaw/auth_token
 
-# Display auth token location (not the token itself)
+# ═══════════════════════════════════════════════════════════════════════════════
+# Display Post-Installation Information
+# ═══════════════════════════════════════════════════════════════════════════════
+
 echo ""
 echo "═══════════════════════════════════════════════════════════════════════════════"
-echo "  OpenClaw Auth Token saved to: /home/openclaw/.openclaw/auth_token"
-echo "  View with: sudo cat /home/openclaw/.openclaw/auth_token"
+echo "  OpenClaw Installation Complete"
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
-echo "  Access URLs:"
+echo "  Auth Token saved to: /home/openclaw/.openclaw/auth_token"
+echo "  View with: cat /home/openclaw/.openclaw/auth_token"
+echo ""
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "  Access URLs"
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo ""
 echo "  HTTP:  http://${CONTAINER_IP}:18789"
 echo "  HTTPS: https://${CONTAINER_IP}:18790"
 echo ""
-echo "═══════���═══════════════════════════════════════════════════════════════════════"
-echo "  Next Steps:"
+echo "  Note: HTTPS uses a self-signed certificate. Click 'Advanced' -> 'Proceed to site'"
+echo "        in your browser to accept the certificate."
+echo ""
+echo "═══════════════════════════════════════��═══════════════════════════════════════"
+echo "  LXC Container Service Management"
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
-echo "  Note: The openclaw user has no login shell. Use 'sudo -u openclaw' to run commands."
+echo "  System-level service installed (required for LXC containers)."
+echo ""
+echo "  Service Management Commands:"
+echo "    Status:  systemctl status openclaw-gateway"
+echo "    Start:   systemctl start openclaw-gateway"
+echo "    Stop:    systemctl stop openclaw-gateway"
+echo "    Restart: systemctl restart openclaw-gateway"
+echo "    Logs:    journalctl -u openclaw-gateway -f"
+echo ""
+echo "═══════════════════════════════════════════════════════════════════════════════"
+echo "  Next Steps"
+echo "═══════════════════════════════════════════════════════════════════════════════"
 echo ""
 echo "  1. Configure a Model Provider (REQUIRED for OpenClaw to function):"
 echo ""
@@ -319,28 +368,28 @@ echo "       • Install Ollama: curl -fsSL https://ollama.com/install.sh | sh"
 echo "       • Pull a model: ollama pull llama3.2"
 echo "       • Pull embedding model: ollama pull nomic-embed-text"
 echo "       • Configure OpenClaw:"
-echo "         sudo -u openclaw openclaw configure"
+echo "         /home/openclaw/.npm-global/bin/openclaw configure"
 echo "         # Select Ollama as provider"
 echo ""
 echo "     Option B - OpenAI API:"
-echo "       sudo -u openclaw openclaw models auth add --provider openai"
+echo "       /home/openclaw/.npm-global/bin/openclaw models auth add --provider openai"
 echo "       # Enter your API key when prompted"
 echo ""
 echo "     Option C - Anthropic Claude:"
-echo "       sudo -u openclaw openclaw models auth add --provider anthropic"
+echo "       /home/openclaw/.npm-global/bin/openclaw models auth add --provider anthropic"
 echo "       # Enter your API key when prompted"
 echo ""
 echo "  2. Configure Channels (Optional - for messaging):"
-echo "     sudo -u openclaw openclaw channels add --channel telegram --token YOUR_BOT_TOKEN"
-echo "     sudo -u openclaw openclaw channels add --channel discord --token YOUR_BOT_TOKEN"
+echo "     /home/openclaw/.npm-global/bin/openclaw channels add --channel telegram --token YOUR_BOT_TOKEN"
+echo "     /home/openclaw/.npm-global/bin/openclaw channels add --channel discord --token YOUR_BOT_TOKEN"
 echo ""
 echo "  3. Verify Installation:"
-echo "     sudo -u openclaw openclaw doctor"
-echo "     sudo -u openclaw openclaw gateway status"
-echo "     sudo -u openclaw openclaw models status"
+echo "     /home/openclaw/.npm-global/bin/openclaw doctor"
+echo "     /home/openclaw/.npm-global/bin/openclaw gateway status"
+echo "     /home/openclaw/.npm-global/bin/openclaw models status"
 echo ""
 echo "  4. View Logs:"
-echo "     sudo -u openclaw openclaw logs --follow"
+echo "     journalctl -u openclaw-gateway -f"
 echo ""
 echo "═══════════════════════════════════════════════════════════════════════════════"
 echo "  Memory Search Configuration"
@@ -353,13 +402,11 @@ echo ""
 echo "  To configure Ollama (recommended for offline use):"
 echo "    1. Ensure Ollama is running on this host or accessible remotely"
 echo "    2. Pull an embedding model: ollama pull nomic-embed-text"
-echo "    3. Edit config: nano ~/.openclaw/openclaw.json"
+echo "    3. Edit config: nano /home/openclaw/.openclaw/openclaw.json"
 echo ""
 echo "  Add to config under 'agents.defaults.memorySearch':"
 echo '    { "provider": "ollama", "model": "nomic-embed-text",'
 echo '      "remote": { "baseUrl": "http://YOUR_OLLAMA_HOST:11434" } }'
-echo ""
-echo "  See docs/guides/openclaw-configuration.md for detailed setup."
 echo ""
 
 motd_ssh
