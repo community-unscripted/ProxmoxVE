@@ -90,7 +90,8 @@ curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh -o
 # Pipe empty string to automatically confirm the "Press RETURN" prompt
 # Using sudo -u since openclaw user has nologin shell
 # IMPORTANT: Run from openclaw's home directory to avoid permission errors
-cd /home/openclaw && echo "" | CI=1 NONINTERACTIVE=1 sudo -u openclaw bash /tmp/brew-install.sh || true
+# Output redirected to suppress verbose installation messages
+cd /home/openclaw && echo "" | CI=1 NONINTERACTIVE=1 sudo -u openclaw bash /tmp/brew-install.sh >/dev/null 2>&1 || true
 rm -f /tmp/brew-install.sh
 
 # Add Homebrew to PATH for openclaw user
@@ -249,6 +250,8 @@ Environment="PATH=/home/openclaw/.npm-global/bin:/usr/local/bin:/usr/bin:/bin"
 Environment="OPENCLAW_CONFIG_PATH=/home/openclaw/.openclaw/openclaw.json"
 Environment="NODE_COMPILE_CACHE=/var/tmp/openclaw-compile-cache"
 Environment="OPENCLAW_NO_RESPAWN=1"
+# LXC container mode - skip systemd service management (D-Bus not available)
+Environment="OPENCLAW_SKIP_SERVICE_INSTALL=1"
 ExecStart=/home/openclaw/.npm-global/bin/openclaw gateway
 Restart=on-failure
 RestartSec=10
