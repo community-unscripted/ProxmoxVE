@@ -2,14 +2,32 @@
 .DS_Store
 Thumbs.db
 
-# Editor & IDE files
+# Editor & IDE files (keeping .vscode settings but ignoring unnecessary metadata)
 !.vscode/
 .vscode/*.workspace
 .vscode/*.tmp
 
-# Log files
+# Log and Cache files
 logs/
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python-specific exclusions
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.venv/
+venv/
+env/
+*.env
+
+# API and Backend specific exclusions
+api/.env
+api/__pycache__/
+api/*.sqlite3
 
 # Install scripts and temporary files
 install/tmp/
@@ -23,7 +41,7 @@ vm/*.vmdk
 vm/*.iso
 vm/*.bak
 
-# Miscellaneous temporary files
+# Miscellaneous temporary or unnecessary files
 *.bak
 *.swp
 *.swo
@@ -31,7 +49,57 @@ vm/*.bak
 *.tmp
 *.backup
 
-# JSON temporary files
-json/
+# JSON configuration backups
 json/*.bak
 json/*.tmp
+json/.vscode/
+
+# Ignore compiled binaries or packaged artifacts
+*.exe
+*.dll
+*.bin
+*.deb
+*.rpm
+*.tar.gz
+*.zip
+*.tgz
+
+# Ignore repository metadata or Git itself
+.git/
+.gitignore
+.vscode/settings.json
+
+
+# Frontend dependencies (installed by CI/CD)
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+#ignore plan artifacts
+plans/*
+plans/frontend-update-plan.md
+
+# ── GSD baseline (auto-generated) ──
+.gsd
+.gsd-id
+.mcp.json
+.bg-shell/
+*~
+.idea/
+.vscode/
+*.code-workspace
+.env
+.env.*
+!.env.example
+node_modules/
+.next/
+dist/
+build/
+.venv/
+target/
+vendor/
+coverage/
+.cache/
+tmp/
+.gsd.migrating
+.gsd
